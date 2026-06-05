@@ -1,0 +1,21 @@
+name: Test Cron
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Zapisz datę do pliku
+        run: |
+          echo "Data uruchomienia: $(date)" > status.txt
+          echo "Status: OK - automat zadziałał" >> status.txt
+      
+      - name: Wysłanie pliku jako artefakt
+        uses: actions/upload-artifact@v3
+        with:
+          name: logi-testowe
+          path: status.txt
