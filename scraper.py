@@ -22,7 +22,7 @@ def scraper():
         page = context.new_page()
 
         logging.info("Ładuję stronę Flashscore...")
-        page.goto("https://www.flashscore.pl/pilka-nozna/swiat/mistrzostwa-swiata/mecze/")
+        page.goto("https://www.flashscore.pl/pilka-nozna/swiat/mistrzostwa-swiata/#/SbLsX4y7/tabela/")
         
         try:
             page.wait_for_selector(".event__match", timeout=15000)
