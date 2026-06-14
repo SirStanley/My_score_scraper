@@ -18,7 +18,6 @@ def scraper():
         print(f"Pobieranie wyników dla: {dzisiaj} oraz {wczoraj}")
         page.goto("https://www.flashscore.pl/pilka-nozna/swiat/mistrzostwa-swiata/wyniki/")
 
-        # RODO
         try:
             page.wait_for_selector("#onetrust-accept-btn-handler", timeout=5000)
             page.click("#onetrust-accept-btn-handler")
@@ -27,7 +26,7 @@ def scraper():
 
         page.wait_for_selector(".leagues--static")
 
-        # Znajdź główną sekcję "ŚWIAT: Mistrzostwa Świata"
+        # Znajduje sekcję "ŚWIAT: Mistrzostwa Świata"
         bloki = page.query_selector_all(".leagues--static")
         target_blok = None
         for blok in bloki:
@@ -63,30 +62,50 @@ def scraper():
                     'url': f"https://www.flashscore.pl/mecz/{m_id}/#szczegoly-meczu"
                 })
 
-        # 2. Wysyłka do PHP
-        print(f"Znaleziono {len(mecz_data_list)} mecze. Wysyłam...")
+        # 2. Pobieranie strzelców i wysyłka
+        print(f"Znaleziono {len(mecz_data_list)} mecze. Przetwarzam...")
 
         for mecz in mecz_data_list:
+            print(f"\n>>> Przetwarzanie: {mecz['home']} {mecz['h_score']}:{mecz['a_score']} {mecz['away']}")
             page.goto(mecz['url'])
             try:
                 page.wait_for_selector(".smv__participantRow", timeout=8000)
                 wiersze = page.query_selector_all(".smv__participantRow")
-                strzelcy = [w.query_selector(".smv__playerName").inner_text().strip()
-                            for w in wiersze if w.query_selector("[data-testid*='goal']")]
 
-                mecz['scorers'] = ",".join(strzelcy)
+                strzelcy_dane = []
+
+                for w in wiersze:
+                    # Sprawdzam czy to wiersz z golem
+                    if w.query_selector("[data-testid*='goal']"):
+                        # Sprawdzam czy to gol samobójczy
+                        if w.query_selector("svg.footballOwnGoal-ico"):
+                            nazwa_og = w.query_selector(".smv__playerName").inner_text().strip()
+                            print(f"    [X] Wykryto gola samobójczego: {nazwa_og}. Pomijam.")
+                            continue
+
+                        nazwa = w.query_selector(".smv__playerName").inner_text().strip()
+
+                        # sprawdzam klasę wiersza dla drużyny
+                        klasa = w.get_attribute("class") or ""
+                        druzyna = mecz['home'] if "smv__homeParticipant" in klasa else mecz['away']
+
+                        strzelcy_dane.append(f"{nazwa}|{druzyna}")
+                        print(f"    [GOL] Strzelec: {nazwa} | Drużyna: {druzyna}")
+
+                mecz['scorers'] = ",".join(strzelcy_dane)
+                print(f"    Finalny string dla PHP: {mecz['scorers']}")
 
                 # WYSYŁKA
                 response = requests.post(URL_PHP, data=mecz, timeout=10)
-                print(f"Wysłano: {mecz['home']} - {mecz['away']} | Status: {response.status_code}")
+                print(f"    Status wysyłki: {response.status_code}")
 
             except Exception as e:
-                print(f"Błąd wysyłki {mecz['home']}: {e}")
+                print(f"    Błąd przetwarzania: {e}")
 
             time.sleep(1)
 
         browser.close()
-        print("Gotowe!")
+        print("\nGotowe!")
 
 
 if __name__ == "__main__":
